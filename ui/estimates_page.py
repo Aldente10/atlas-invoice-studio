@@ -1,10 +1,12 @@
 from datetime import date, timedelta
 
-from PySide6.QtCore import QDate, Qt
+from PySide6.QtCore import QDate, QUrl, Qt
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
     QDateEdit,
+    QDialog,
     QDoubleSpinBox,
     QFrame,
     QHBoxLayout,
@@ -24,6 +26,8 @@ from PySide6.QtWidgets import (
 from database.customer_repository import CustomerRepository
 from database.estimate_repository import EstimateRepository
 from models.estimate import Estimate, EstimateItem
+from pdf.estimate_pdf import generate_estimate_pdf
+from ui.customer_dialog import CustomerDialog
 
 
 class EstimatesPage(QWidget):
@@ -39,8 +43,11 @@ class EstimatesPage(QWidget):
         self.customer_repository = CustomerRepository()
         self.estimate_repository = EstimateRepository()
 
+        self.current_estimate_id: int | None = None
+
         self.build_ui()
         self.load_customers()
+        self.load_saved_estimates()
         self.start_new_estimate()
 
     def build_ui(self) -> None:
@@ -75,6 +82,31 @@ class EstimatesPage(QWidget):
 
         root.addLayout(header)
 
+        saved_row = QHBoxLayout()
+
+        saved_label = QLabel("Open Saved Estimate")
+        saved_label.setObjectName("metricTitle")
+
+        self.saved_estimates_combo = QComboBox()
+        self.saved_estimates_combo.setObjectName("formInput")
+        self.saved_estimates_combo.setMinimumWidth(360)
+
+        open_button = QPushButton("Open")
+        open_button.setObjectName("secondaryButton")
+        open_button.clicked.connect(self.open_saved_estimate)
+
+        delete_estimate_button = QPushButton("Delete Estimate")
+        delete_estimate_button.setObjectName("dangerButton")
+        delete_estimate_button.clicked.connect(self.delete_current_estimate)
+
+        saved_row.addWidget(saved_label)
+        saved_row.addWidget(self.saved_estimates_combo)
+        saved_row.addWidget(open_button)
+        saved_row.addWidget(delete_estimate_button)
+        saved_row.addStretch()
+
+        root.addLayout(saved_row)
+
         editor = QFrame()
         editor.setObjectName("panel")
 
@@ -98,12 +130,25 @@ class EstimatesPage(QWidget):
         self.number_input.setObjectName("formInput")
         self.number_input.setPrefix("Estimate #")
 
+        customer_widget = QWidget()
+        customer_layout = QHBoxLayout(customer_widget)
+        customer_layout.setContentsMargins(0, 0, 0, 0)
+        customer_layout.setSpacing(6)
+
         self.customer_combo = QComboBox()
         self.customer_combo.setObjectName("formInput")
         self.customer_combo.setMinimumWidth(240)
         self.customer_combo.currentIndexChanged.connect(
             self.customer_changed
         )
+
+        add_customer_button = QPushButton("+ Customer")
+        add_customer_button.setObjectName("secondaryButton")
+        add_customer_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        add_customer_button.clicked.connect(self.create_customer)
+
+        customer_layout.addWidget(self.customer_combo, 1)
+        customer_layout.addWidget(add_customer_button)
 
         self.estimate_date_input = QDateEdit()
         self.estimate_date_input.setObjectName("formInput")
@@ -116,7 +161,7 @@ class EstimatesPage(QWidget):
         self.expiration_date_input.setDisplayFormat("MM/dd/yyyy")
 
         layout.addWidget(self.number_input)
-        layout.addWidget(self.customer_combo, 1)
+        layout.addWidget(customer_widget, 1)
         layout.addWidget(self.estimate_date_input)
         layout.addWidget(self.expiration_date_input)
 
@@ -231,6 +276,11 @@ class EstimatesPage(QWidget):
         self.total_label = QLabel("Total: $0.00")
         self.total_label.setObjectName("grandTotal")
 
+        preview_button = QPushButton("Preview PDF")
+        preview_button.setObjectName("secondaryButton")
+        preview_button.setMinimumHeight(42)
+        preview_button.clicked.connect(self.preview_pdf)
+
         save_button = QPushButton("Save Estimate")
         save_button.setObjectName("primaryButton")
         save_button.setMinimumHeight(42)
@@ -241,6 +291,7 @@ class EstimatesPage(QWidget):
         totals_layout.addWidget(self.tax_label)
         totals_layout.addWidget(self.total_label)
         totals_layout.addSpacing(8)
+        totals_layout.addWidget(preview_button)
         totals_layout.addWidget(save_button)
 
         layout.addLayout(left, 1)
@@ -270,7 +321,9 @@ class EstimatesPage(QWidget):
         self.customer_combo.blockSignals(False)
 
     def start_new_estimate(self) -> None:
+        self.current_estimate_id = None
         self.load_customers()
+        self.load_saved_estimates()
 
         self.number_input.setValue(
             self.estimate_repository.next_estimate_number()
@@ -295,6 +348,26 @@ class EstimatesPage(QWidget):
         self.add_line_item()
         self.recalculate_totals()
 
+    def create_customer(self) -> None:
+        dialog = CustomerDialog(self)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        customer = dialog.created_customer
+
+        if customer is None:
+            return
+
+        self.load_customers()
+
+        index = self.customer_combo.findData(customer.id)
+
+        if index >= 0:
+            self.customer_combo.setCurrentIndex(index)
+
+        self.job_address_input.setText(customer.job_address)
+
     def customer_changed(self) -> None:
         customer_id = self.customer_combo.currentData()
 
@@ -306,7 +379,120 @@ class EstimatesPage(QWidget):
         if customer is not None:
             self.job_address_input.setText(customer.job_address)
 
-    def add_line_item(self) -> None:
+    def load_saved_estimates(self) -> None:
+        if not hasattr(self, "saved_estimates_combo"):
+            return
+
+        current_id = self.saved_estimates_combo.currentData()
+
+        self.saved_estimates_combo.clear()
+        self.saved_estimates_combo.addItem("Select saved estimate...", None)
+
+        for summary in self.estimate_repository.get_all_summaries():
+            customer = summary["customer_name"]
+
+            if summary["customer_company"]:
+                customer += f" — {summary['customer_company']}"
+
+            total = self.format_currency(summary["total_cents"])
+
+            label = (
+                f"Estimate #{summary['estimate_number']} | "
+                f"{customer} | {total}"
+            )
+
+            self.saved_estimates_combo.addItem(label, summary["id"])
+
+        if current_id is not None:
+            index = self.saved_estimates_combo.findData(current_id)
+            if index >= 0:
+                self.saved_estimates_combo.setCurrentIndex(index)
+
+    def open_saved_estimate(self) -> None:
+        estimate_id = self.saved_estimates_combo.currentData()
+
+        if estimate_id is None:
+            QMessageBox.information(
+                self,
+                "Select an Estimate",
+                "Choose a saved estimate before clicking Open.",
+            )
+            return
+
+        estimate = self.estimate_repository.get_by_id(estimate_id)
+
+        if estimate is None:
+            QMessageBox.warning(
+                self,
+                "Estimate Not Found",
+                "The selected estimate could not be loaded.",
+            )
+            self.load_saved_estimates()
+            return
+
+        self.current_estimate_id = estimate.id
+        self.number_input.setValue(estimate.estimate_number)
+
+        customer_index = self.customer_combo.findData(
+            estimate.customer_id
+        )
+        if customer_index >= 0:
+            self.customer_combo.setCurrentIndex(customer_index)
+
+        self.estimate_date_input.setDate(
+            QDate.fromString(estimate.estimate_date, "yyyy-MM-dd")
+        )
+        self.expiration_date_input.setDate(
+            QDate.fromString(estimate.expiration_date, "yyyy-MM-dd")
+        )
+
+        self.job_address_input.setText(estimate.job_address)
+        self.notes_input.setPlainText(estimate.notes)
+        self.tax_rate_input.setValue(estimate.tax_rate)
+
+        self.items_table.setRowCount(0)
+
+        for item in estimate.items:
+            self.add_line_item(item)
+
+        if not estimate.items:
+            self.add_line_item()
+
+        self.recalculate_totals()
+
+    def delete_current_estimate(self) -> None:
+        estimate_id = self.current_estimate_id
+
+        if estimate_id is None:
+            estimate_id = self.saved_estimates_combo.currentData()
+
+        if estimate_id is None:
+            QMessageBox.information(
+                self,
+                "No Estimate Selected",
+                "Open or select an estimate before deleting.",
+            )
+            return
+
+        answer = QMessageBox.question(
+            self,
+            "Delete Estimate",
+            "Are you sure you want to permanently delete this estimate?",
+            QMessageBox.StandardButton.Yes
+            | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        self.estimate_repository.delete(estimate_id)
+        self.start_new_estimate()
+
+    def add_line_item(
+        self,
+        existing_item: EstimateItem | None = None,
+    ) -> None:
         row = self.items_table.rowCount()
         self.items_table.insertRow(row)
 
@@ -317,7 +503,9 @@ class EstimatesPage(QWidget):
         quantity = QDoubleSpinBox()
         quantity.setRange(0.01, 999999.0)
         quantity.setDecimals(2)
-        quantity.setValue(1.0)
+        quantity.setValue(
+            existing_item.quantity if existing_item else 1.0
+        )
         quantity.setObjectName("tableInput")
 
         rate = QDoubleSpinBox()
@@ -325,6 +513,10 @@ class EstimatesPage(QWidget):
         rate.setDecimals(2)
         rate.setPrefix("$")
         rate.setObjectName("tableInput")
+
+        if existing_item is not None:
+            description.setText(existing_item.description)
+            rate.setValue(existing_item.rate_cents / 100)
 
         amount = QTableWidgetItem("$0.00")
         amount.setTextAlignment(
@@ -465,6 +657,90 @@ class EstimatesPage(QWidget):
             f"Total: {self.format_currency(total_cents)}"
         )
 
+    def preview_pdf(self) -> None:
+        customer_id = self.customer_combo.currentData()
+
+        if customer_id is None:
+            QMessageBox.warning(
+                self,
+                "Customer Required",
+                "Select a customer before creating the PDF.",
+            )
+            return
+
+        customer = self.customer_repository.get_by_id(customer_id)
+
+        if customer is None:
+            QMessageBox.warning(
+                self,
+                "Customer Not Found",
+                "The selected customer could not be loaded.",
+            )
+            return
+
+        items = self.collect_items()
+
+        if not items:
+            QMessageBox.warning(
+                self,
+                "Line Item Required",
+                "Add at least one estimate line item.",
+            )
+            return
+
+        for item in items:
+            if not item.description:
+                QMessageBox.warning(
+                    self,
+                    "Description Required",
+                    "Every priced line item needs a description.",
+                )
+                return
+
+        subtotal_cents = sum(item.amount_cents for item in items)
+        tax_rate = self.tax_rate_input.value()
+        tax_cents = round(subtotal_cents * tax_rate / 100)
+        total_cents = subtotal_cents + tax_cents
+
+        estimate_date = self.estimate_date_input.date()
+        expiration_date = self.expiration_date_input.date()
+
+        estimate = Estimate(
+            id=self.current_estimate_id,
+            estimate_number=self.number_input.value(),
+            customer_id=customer_id,
+            estimate_date=estimate_date.toString("MM/dd/yyyy"),
+            expiration_date=expiration_date.toString("MM/dd/yyyy"),
+            job_address=self.job_address_input.text().strip(),
+            notes=self.notes_input.toPlainText().strip(),
+            subtotal_cents=subtotal_cents,
+            tax_rate=tax_rate,
+            tax_cents=tax_cents,
+            total_cents=total_cents,
+            items=items,
+        )
+
+        try:
+            pdf_path = generate_estimate_pdf(estimate, customer)
+        except Exception as error:
+            QMessageBox.critical(
+                self,
+                "Unable to Generate PDF",
+                str(error),
+            )
+            return
+
+        opened = QDesktopServices.openUrl(
+            QUrl.fromLocalFile(str(pdf_path))
+        )
+
+        if not opened:
+            QMessageBox.information(
+                self,
+                "PDF Created",
+                f"The PDF was saved here:\n{pdf_path}",
+            )
+
     def save_estimate(self) -> None:
         customer_id = self.customer_combo.currentData()
 
@@ -505,6 +781,7 @@ class EstimatesPage(QWidget):
         expiration_date = self.expiration_date_input.date()
 
         estimate = Estimate(
+            id=self.current_estimate_id,
             estimate_number=self.number_input.value(),
             customer_id=customer_id,
             estimate_date=estimate_date.toString("yyyy-MM-dd"),
@@ -519,7 +796,12 @@ class EstimatesPage(QWidget):
         )
 
         try:
-            self.estimate_repository.create(estimate)
+            if estimate.id is None:
+                self.estimate_repository.create(estimate)
+                action = "saved"
+            else:
+                self.estimate_repository.update(estimate)
+                action = "updated"
         except Exception as error:
             QMessageBox.critical(
                 self,
@@ -532,7 +814,7 @@ class EstimatesPage(QWidget):
             self,
             "Estimate Saved",
             (
-                f"Estimate #{estimate.estimate_number} was saved "
+                f"Estimate #{estimate.estimate_number} was {action} "
                 f"successfully for "
                 f"{self.format_currency(estimate.total_cents)}."
             ),

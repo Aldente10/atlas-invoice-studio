@@ -9,3 +9,5 @@ backups/*
 .DS_Store
 
 data/
+
+generated_documents/
