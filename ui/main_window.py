@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 from theme.styles import APP_STYLE
 from ui.customers_page import CustomersPage
 from ui.dashboard_page import DashboardPage
+from ui.estimates_page import EstimatesPage
 
 
 class PlaceholderPage(QWidget):
@@ -79,12 +80,7 @@ class MainWindow(QMainWindow):
     def build_pages(self) -> None:
         self.page_stack.addWidget(DashboardPage())
         self.page_stack.addWidget(CustomersPage())
-        self.page_stack.addWidget(
-            PlaceholderPage(
-                "Estimates",
-                "Create, review, and manage customer estimates.",
-            )
-        )
+        self.page_stack.addWidget(EstimatesPage())
         self.page_stack.addWidget(
             PlaceholderPage(
                 "Invoices",

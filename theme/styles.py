@@ -213,4 +213,53 @@ QMainWindow,
     background-color: #ffe3e1;
 }
 
+
+#estimateTable {
+    background-color: #ffffff;
+    color: #10233e;
+    border: 1px solid #dfe7f1;
+    border-radius: 8px;
+    gridline-color: #e6edf5;
+    alternate-background-color: #f8faff;
+}
+
+#estimateTable QHeaderView::section {
+    background-color: #eef3fa;
+    color: #42546c;
+    border: none;
+    border-bottom: 1px solid #d7e0eb;
+    padding: 10px;
+    font-weight: 700;
+}
+
+#tableInput {
+    background-color: #ffffff;
+    color: #10233e;
+    border: 1px solid #ccd7e5;
+    border-radius: 5px;
+    padding: 6px;
+}
+
+#tableInput:focus {
+    border: 2px solid #1769e0;
+}
+
+#totalsPanel {
+    background-color: #f8faff;
+    border: 1px solid #dfe7f1;
+    border-radius: 10px;
+}
+
+#totalLine {
+    color: #42546c;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+#grandTotal {
+    color: #10233e;
+    font-size: 24px;
+    font-weight: 800;
+}
+
 """
