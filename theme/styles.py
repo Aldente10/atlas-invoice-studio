@@ -168,4 +168,49 @@ QMainWindow,
     color: #8d9aac;
     font-size: 11px;
 }
+
+#formInput {
+    background-color: #ffffff;
+    color: #10233e;
+    border: 1px solid #ccd7e5;
+    border-radius: 7px;
+    padding: 8px 10px;
+}
+
+#formInput:focus {
+    border: 2px solid #1769e0;
+}
+
+#customerList {
+    background-color: #ffffff;
+    border: 1px solid #dfe7f1;
+    border-radius: 8px;
+    padding: 4px;
+    outline: none;
+}
+
+#customerList::item {
+    padding: 10px;
+    border-bottom: 1px solid #edf1f6;
+}
+
+#customerList::item:selected {
+    background-color: #e7f0ff;
+    color: #104da7;
+    border-radius: 6px;
+}
+
+#dangerButton {
+    background-color: #fff0f0;
+    color: #b42318;
+    border: 1px solid #f0b8b4;
+    border-radius: 7px;
+    padding: 10px 14px;
+    font-weight: 700;
+}
+
+#dangerButton:hover {
+    background-color: #ffe3e1;
+}
+
 """

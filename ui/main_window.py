@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from theme.styles import APP_STYLE
+from ui.customers_page import CustomersPage
 from ui.dashboard_page import DashboardPage
 
 
@@ -77,12 +78,7 @@ class MainWindow(QMainWindow):
 
     def build_pages(self) -> None:
         self.page_stack.addWidget(DashboardPage())
-        self.page_stack.addWidget(
-            PlaceholderPage(
-                "Customers",
-                "Manage customer contact information and job locations.",
-            )
-        )
+        self.page_stack.addWidget(CustomersPage())
         self.page_stack.addWidget(
             PlaceholderPage(
                 "Estimates",
@@ -171,11 +167,9 @@ class MainWindow(QMainWindow):
         self.page_stack.setCurrentIndex(index)
 
         for button_index, button in enumerate(self.nav_buttons):
-            if button_index == index:
-                button.setObjectName("navButtonActive")
-            else:
-                button.setObjectName("navButton")
-
+            button.setObjectName(
+                "navButtonActive" if button_index == index else "navButton"
+            )
             button.style().unpolish(button)
             button.style().polish(button)
             button.update()

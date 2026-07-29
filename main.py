@@ -2,10 +2,13 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
+from database.database import initialize_database
 from ui.main_window import MainWindow
 
 
 def main() -> None:
+    initialize_database()
+
     app = QApplication(sys.argv)
     app.setApplicationName("Atlas Invoice Studio")
 
