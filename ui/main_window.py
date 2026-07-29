@@ -14,6 +14,7 @@ from theme.styles import APP_STYLE
 from ui.customers_page import CustomersPage
 from ui.dashboard_page import DashboardPage
 from ui.estimates_page import EstimatesPage
+from ui.services_page import ServicesPage
 
 
 class PlaceholderPage(QWidget):
@@ -87,12 +88,7 @@ class MainWindow(QMainWindow):
                 "Create invoices and track outstanding balances.",
             )
         )
-        self.page_stack.addWidget(
-            PlaceholderPage(
-                "Products & Services",
-                "Maintain reusable labor, service, and material items.",
-            )
-        )
+        self.page_stack.addWidget(ServicesPage())
         self.page_stack.addWidget(
             PlaceholderPage(
                 "Reports",
@@ -130,7 +126,7 @@ class MainWindow(QMainWindow):
             "Customers",
             "Estimates",
             "Invoices",
-            "Products & Services",
+            "Service Library",
             "Reports",
             "Settings",
         ]

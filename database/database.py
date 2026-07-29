@@ -78,5 +78,25 @@ def initialize_database() -> None:
 
             CREATE INDEX IF NOT EXISTS idx_estimates_number
             ON estimates(estimate_number);
+
+            CREATE TABLE IF NOT EXISTS services (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                category TEXT NOT NULL DEFAULT '',
+                description TEXT NOT NULL DEFAULT '',
+                default_quantity REAL NOT NULL DEFAULT 1,
+                default_rate_cents INTEGER NOT NULL DEFAULT 0,
+                taxable INTEGER NOT NULL DEFAULT 0,
+                favorite INTEGER NOT NULL DEFAULT 0,
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_services_name
+            ON services(name);
+
+            CREATE INDEX IF NOT EXISTS idx_services_category
+            ON services(category);
             """
         )

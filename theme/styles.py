@@ -262,4 +262,36 @@ QMainWindow,
     font-weight: 800;
 }
 
+
+#serviceList {
+    background-color: #ffffff;
+    color: #10233e;
+    border: 1px solid #dfe7f1;
+    border-radius: 8px;
+    padding: 4px;
+    outline: none;
+}
+
+#serviceList::item {
+    padding: 11px;
+    border-bottom: 1px solid #edf1f6;
+}
+
+#serviceList::item:selected {
+    background-color: #e7f0ff;
+    color: #104da7;
+    border-radius: 6px;
+}
+
+#formCheckBox {
+    color: #42546c;
+    spacing: 7px;
+    font-weight: 600;
+}
+
+#formCheckBox::indicator {
+    width: 17px;
+    height: 17px;
+}
+
 """
