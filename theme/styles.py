@@ -262,6 +262,50 @@ QMainWindow,
     font-weight: 800;
 }
 
+#serviceSelectionDialog {
+    background-color: #f4f7fb;
+}
+
+#dialogHeading {
+    color: #10233e;
+    font-size: 23px;
+    font-weight: 800;
+}
+
+#dialogResultText {
+    color: #73839a;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#serviceSelectionTable {
+    background-color: #ffffff;
+    color: #10233e;
+    border: 1px solid #dfe7f1;
+    border-radius: 8px;
+    alternate-background-color: #f8faff;
+    outline: none;
+}
+
+#serviceSelectionTable QHeaderView::section {
+    background-color: #eef3fa;
+    color: #42546c;
+    border: none;
+    border-bottom: 1px solid #d7e0eb;
+    padding: 10px;
+    font-weight: 700;
+}
+
+#serviceSelectionTable::item {
+    padding: 8px;
+    border-bottom: 1px solid #edf1f6;
+}
+
+#serviceSelectionTable::item:selected {
+    background-color: #e7f0ff;
+    color: #104da7;
+}
+
 
 #serviceList {
     background-color: #ffffff;

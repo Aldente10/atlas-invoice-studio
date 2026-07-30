@@ -27,7 +27,9 @@ from database.customer_repository import CustomerRepository
 from database.estimate_repository import EstimateRepository
 from models.estimate import Estimate, EstimateItem
 from pdf.estimate_pdf import generate_estimate_pdf
+from services.estimate_items import estimate_item_from_service
 from ui.customer_dialog import CustomerDialog
+from ui.service_selection_dialog import ServiceSelectionDialog
 
 
 class EstimatesPage(QWidget):
@@ -203,19 +205,38 @@ class EstimatesPage(QWidget):
     def build_item_buttons(self) -> QHBoxLayout:
         layout = QHBoxLayout()
 
-        add_button = QPushButton("+ Add Line Item")
-        add_button.setObjectName("secondaryButton")
-        add_button.clicked.connect(self.add_line_item)
+        add_service_button = QPushButton("+ Add Service")
+        add_service_button.setObjectName("primaryButton")
+        add_service_button.setMinimumHeight(40)
+        add_service_button.clicked.connect(self.choose_service)
+
+        add_custom_button = QPushButton("+ Custom Line Item")
+        add_custom_button.setObjectName("secondaryButton")
+        add_custom_button.clicked.connect(self.add_line_item)
 
         remove_button = QPushButton("Remove Selected")
         remove_button.setObjectName("dangerButton")
         remove_button.clicked.connect(self.remove_selected_item)
 
-        layout.addWidget(add_button)
+        layout.addWidget(add_service_button)
+        layout.addWidget(add_custom_button)
         layout.addWidget(remove_button)
         layout.addStretch()
 
         return layout
+
+    def choose_service(self) -> None:
+        dialog = ServiceSelectionDialog(self)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        if dialog.selected_service is None:
+            return
+
+        item = estimate_item_from_service(dialog.selected_service)
+        self.add_line_item(item)
+        self.recalculate_totals()
 
     def build_bottom_section(self) -> QHBoxLayout:
         layout = QHBoxLayout()
