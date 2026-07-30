@@ -14,6 +14,7 @@ from theme.styles import APP_STYLE
 from ui.customers_page import CustomersPage
 from ui.dashboard_page import DashboardPage
 from ui.estimates_page import EstimatesPage
+from ui.invoices_page import InvoicesPage
 from ui.services_page import ServicesPage
 
 
@@ -81,13 +82,11 @@ class MainWindow(QMainWindow):
     def build_pages(self) -> None:
         self.page_stack.addWidget(DashboardPage())
         self.page_stack.addWidget(CustomersPage())
-        self.page_stack.addWidget(EstimatesPage())
-        self.page_stack.addWidget(
-            PlaceholderPage(
-                "Invoices",
-                "Create invoices and track outstanding balances.",
-            )
-        )
+        self.estimates_page = EstimatesPage()
+        self.invoices_page = InvoicesPage()
+        self.estimates_page.invoice_created.connect(self.open_invoice)
+        self.page_stack.addWidget(self.estimates_page)
+        self.page_stack.addWidget(self.invoices_page)
         self.page_stack.addWidget(ServicesPage())
         self.page_stack.addWidget(
             PlaceholderPage(
@@ -156,6 +155,8 @@ class MainWindow(QMainWindow):
         return sidebar
 
     def show_page(self, index: int) -> None:
+        if index == 3:
+            self.invoices_page.load_saved_invoices()
         self.page_stack.setCurrentIndex(index)
 
         for button_index, button in enumerate(self.nav_buttons):
@@ -165,3 +166,8 @@ class MainWindow(QMainWindow):
             button.style().unpolish(button)
             button.style().polish(button)
             button.update()
+
+    def open_invoice(self, invoice_id: int) -> None:
+        self.invoices_page.load_saved_invoices()
+        self.invoices_page.open_invoice(invoice_id)
+        self.show_page(3)

@@ -17,6 +17,7 @@ from reportlab.platypus import (
 
 from models.customer import Customer
 from models.estimate import Estimate
+from models.invoice import Invoice
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -45,16 +46,21 @@ def multiline(value: str) -> str:
     return value.strip().replace("\n", "<br/>")
 
 
-def generate_estimate_pdf(
-    estimate: Estimate,
+def _generate_document_pdf(
+    document_data: Estimate | Invoice,
     customer: Customer,
+    document_label: str,
+    number: int,
+    document_date: str,
+    secondary_date_label: str,
+    secondary_date: str,
     company: dict[str, str] | None = None,
 ) -> Path:
     company = company or DEFAULT_COMPANY
     OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
     output_path = OUTPUT_DIRECTORY / (
-        f"Estimate_{estimate.estimate_number}_"
+        f"{document_label.title()}_{number}_"
         f"{safe_filename(customer.name)}.pdf"
     )
 
@@ -128,7 +134,7 @@ def generate_estimate_pdf(
         leftMargin=0.55 * inch,
         topMargin=0.5 * inch,
         bottomMargin=0.55 * inch,
-        title=f"Estimate #{estimate.estimate_number}",
+        title=f"{document_label.title()} #{number}",
         author=company["name"],
     )
 
@@ -143,26 +149,26 @@ def generate_estimate_pdf(
         Paragraph(company["website"], normal),
     ]
 
-    estimate_block = [
-        Paragraph("ESTIMATE", document_title),
+    document_block = [
+        Paragraph(document_label, document_title),
         Spacer(1, 8),
         Paragraph(
-            f"<b>Estimate no.:</b> {estimate.estimate_number}",
+            f"<b>{document_label.title()} no.:</b> {number}",
             right,
         ),
         Paragraph(
-            f"<b>Estimate date:</b> {estimate.estimate_date}",
+            f"<b>{document_label.title()} date:</b> {document_date}",
             right,
         ),
         Paragraph(
-            f"<b>Expiration date:</b> {estimate.expiration_date}",
+            f"<b>{secondary_date_label}:</b> {secondary_date}",
             right,
         ),
-        Paragraph(f"<b>Status:</b> {estimate.status}", right),
+        Paragraph(f"<b>Status:</b> {document_data.status}", right),
     ]
 
     header = Table(
-        [[company_block, estimate_block]],
+        [[company_block, document_block]],
         colWidths=[4.15 * inch, 3.0 * inch],
     )
     header.setStyle(
@@ -199,8 +205,8 @@ def generate_estimate_pdf(
     job_to = [
         Paragraph("JOB LOCATION", label),
         Paragraph(
-            multiline(estimate.job_address)
-            if estimate.job_address
+            multiline(document_data.job_address)
+            if document_data.job_address
             else "Same as billing address",
             normal,
         ),
@@ -238,7 +244,7 @@ def generate_estimate_pdf(
         ]
     ]
 
-    for index, item in enumerate(estimate.items, start=1):
+    for index, item in enumerate(document_data.items, start=1):
         item_rows.append(
             [
                 Paragraph(str(index), normal),
@@ -288,7 +294,7 @@ def generate_estimate_pdf(
     story.append(items_table)
     story.append(Spacer(1, 16))
 
-    notes_content = estimate.notes or "No additional notes."
+    notes_content = document_data.notes or "No additional notes."
 
     notes_box = Table(
         [[
@@ -302,9 +308,9 @@ def generate_estimate_pdf(
                 Paragraph("TOTAL", total_style),
             ],
             [
-                Paragraph(format_currency(estimate.subtotal_cents), right),
-                Paragraph(format_currency(estimate.tax_cents), right),
-                Paragraph(format_currency(estimate.total_cents), total_style),
+                Paragraph(format_currency(document_data.subtotal_cents), right),
+                Paragraph(format_currency(document_data.tax_cents), right),
+                Paragraph(format_currency(document_data.total_cents), total_style),
             ],
         ]],
         colWidths=[4.45 * inch, 1.15 * inch, 1.55 * inch],
@@ -329,39 +335,57 @@ def generate_estimate_pdf(
     story.append(notes_box)
     story.append(Spacer(1, 28))
 
-    acceptance = KeepTogether(
-        [
-            Paragraph("ESTIMATE ACCEPTANCE", label),
-            Paragraph(
-                "By signing below, the customer accepts the work, pricing, "
-                "and terms described in this estimate.",
-                small,
-            ),
-            Spacer(1, 24),
-            Table(
-                [
-                    [
-                        Paragraph("Accepted by", small),
-                        Paragraph("Signature", small),
-                        Paragraph("Date", small),
-                    ],
-                    ["", "", ""],
-                ],
-                colWidths=[2.25 * inch, 3.0 * inch, 1.65 * inch],
-                rowHeights=[0.22 * inch, 0.42 * inch],
-                style=TableStyle(
-                    [
-                        ("LINEBELOW", (0, 1), (-1, 1), 0.75, colors.HexColor("#64748B")),
-                        ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
-                        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                        ("RIGHTPADDING", (0, 0), (-1, -1), 12),
-                    ]
+    if document_label == "ESTIMATE":
+        closing = KeepTogether(
+            [
+                Paragraph("ESTIMATE ACCEPTANCE", label),
+                Paragraph(
+                    "By signing below, the customer accepts the work, pricing, "
+                    "and terms described in this estimate.",
+                    small,
                 ),
-            ),
-        ]
-    )
+                Spacer(1, 24),
+                Table(
+                    [
+                        [
+                            Paragraph("Accepted by", small),
+                            Paragraph("Signature", small),
+                            Paragraph("Date", small),
+                        ],
+                        ["", "", ""],
+                    ],
+                    colWidths=[2.25 * inch, 3.0 * inch, 1.65 * inch],
+                    rowHeights=[0.22 * inch, 0.42 * inch],
+                    style=TableStyle(
+                        [
+                            (
+                                "LINEBELOW",
+                                (0, 1),
+                                (-1, 1),
+                                0.75,
+                                colors.HexColor("#64748B"),
+                            ),
+                            ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
+                            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                            ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+                        ]
+                    ),
+                ),
+            ]
+        )
+    else:
+        closing = KeepTogether(
+            [
+                Paragraph("PAYMENT DETAILS", label),
+                Paragraph(
+                    f"Payment is due by {secondary_date}. Please reference "
+                    f"invoice #{number} with payment. Thank you for your business.",
+                    small,
+                ),
+            ]
+        )
 
-    story.append(acceptance)
+    story.append(closing)
 
     def draw_footer(canvas, doc) -> None:
         canvas.saveState()
@@ -393,3 +417,20 @@ def generate_estimate_pdf(
     )
 
     return output_path
+
+
+def generate_estimate_pdf(
+    estimate: Estimate,
+    customer: Customer,
+    company: dict[str, str] | None = None,
+) -> Path:
+    return _generate_document_pdf(
+        estimate,
+        customer,
+        "ESTIMATE",
+        estimate.estimate_number,
+        estimate.estimate_date,
+        "Expiration date",
+        estimate.expiration_date,
+        company,
+    )

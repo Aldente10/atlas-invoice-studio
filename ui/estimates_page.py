@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from PySide6.QtCore import QDate, QUrl, Qt
+from PySide6.QtCore import QDate, QUrl, Qt, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -25,6 +25,10 @@ from PySide6.QtWidgets import (
 
 from database.customer_repository import CustomerRepository
 from database.estimate_repository import EstimateRepository
+from database.invoice_repository import (
+    DuplicateEstimateConversionError,
+    InvoiceRepository,
+)
 from models.estimate import Estimate, EstimateItem
 from pdf.estimate_pdf import generate_estimate_pdf
 from services.estimate_items import estimate_item_from_service
@@ -33,6 +37,8 @@ from ui.service_selection_dialog import ServiceSelectionDialog
 
 
 class EstimatesPage(QWidget):
+    invoice_created = Signal(int)
+
     DESCRIPTION_COLUMN = 0
     QUANTITY_COLUMN = 1
     RATE_COLUMN = 2
@@ -44,6 +50,7 @@ class EstimatesPage(QWidget):
 
         self.customer_repository = CustomerRepository()
         self.estimate_repository = EstimateRepository()
+        self.invoice_repository = InvoiceRepository()
 
         self.current_estimate_id: int | None = None
 
@@ -101,10 +108,15 @@ class EstimatesPage(QWidget):
         delete_estimate_button.setObjectName("dangerButton")
         delete_estimate_button.clicked.connect(self.delete_current_estimate)
 
+        convert_button = QPushButton("Convert to Invoice")
+        convert_button.setObjectName("primaryButton")
+        convert_button.clicked.connect(self.convert_to_invoice)
+
         saved_row.addWidget(saved_label)
         saved_row.addWidget(self.saved_estimates_combo)
         saved_row.addWidget(open_button)
         saved_row.addWidget(delete_estimate_button)
+        saved_row.addWidget(convert_button)
         saved_row.addStretch()
 
         root.addLayout(saved_row)
@@ -509,6 +521,55 @@ class EstimatesPage(QWidget):
 
         self.estimate_repository.delete(estimate_id)
         self.start_new_estimate()
+
+    def convert_to_invoice(self) -> None:
+        estimate_id = self.current_estimate_id or self.saved_estimates_combo.currentData()
+        if estimate_id is None:
+            QMessageBox.information(
+                self,
+                "No Estimate Selected",
+                "Open or select a saved estimate before converting.",
+            )
+            return
+        estimate = self.estimate_repository.get_by_id(estimate_id)
+        if estimate is None:
+            QMessageBox.warning(
+                self, "Estimate Not Found", "The selected estimate could not be loaded."
+            )
+            return
+
+        try:
+            invoice = self.invoice_repository.create_from_estimate(estimate)
+        except DuplicateEstimateConversionError as error:
+            answer = QMessageBox.question(
+                self,
+                "Estimate Already Converted",
+                f"{error}\n\nCreate another invoice anyway?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+            try:
+                invoice = self.invoice_repository.create_from_estimate(
+                    estimate, allow_duplicate=True
+                )
+            except Exception as retry_error:
+                QMessageBox.critical(
+                    self, "Unable to Convert Estimate", str(retry_error)
+                )
+                return
+        except Exception as error:
+            QMessageBox.critical(self, "Unable to Convert Estimate", str(error))
+            return
+
+        QMessageBox.information(
+            self,
+            "Invoice Created",
+            f"Invoice #{invoice.invoice_number} was created from "
+            f"estimate #{estimate.estimate_number}.",
+        )
+        self.invoice_created.emit(invoice.id)
 
     def add_line_item(
         self,

@@ -79,6 +79,55 @@ def initialize_database() -> None:
             CREATE INDEX IF NOT EXISTS idx_estimates_number
             ON estimates(estimate_number);
 
+            CREATE TABLE IF NOT EXISTS invoices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                invoice_number INTEGER NOT NULL UNIQUE,
+                customer_id INTEGER NOT NULL,
+                source_estimate_id INTEGER,
+                invoice_date TEXT NOT NULL,
+                due_date TEXT NOT NULL,
+                job_address TEXT NOT NULL DEFAULT '',
+                notes TEXT NOT NULL DEFAULT '',
+                subtotal_cents INTEGER NOT NULL DEFAULT 0,
+                tax_rate REAL NOT NULL DEFAULT 0,
+                tax_cents INTEGER NOT NULL DEFAULT 0,
+                total_cents INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'Draft',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (customer_id)
+                    REFERENCES customers(id)
+                    ON DELETE RESTRICT,
+                FOREIGN KEY (source_estimate_id)
+                    REFERENCES estimates(id)
+                    ON DELETE SET NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS invoice_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                invoice_id INTEGER NOT NULL,
+                position INTEGER NOT NULL,
+                description TEXT NOT NULL,
+                quantity REAL NOT NULL DEFAULT 1,
+                rate_cents INTEGER NOT NULL DEFAULT 0,
+                amount_cents INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (invoice_id)
+                    REFERENCES invoices(id)
+                    ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_invoices_customer
+            ON invoices(customer_id);
+
+            CREATE INDEX IF NOT EXISTS idx_invoices_number
+            ON invoices(invoice_number);
+
+            CREATE INDEX IF NOT EXISTS idx_invoices_source_estimate
+            ON invoices(source_estimate_id);
+
+            CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice
+            ON invoice_items(invoice_id);
+
             CREATE TABLE IF NOT EXISTS services (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
