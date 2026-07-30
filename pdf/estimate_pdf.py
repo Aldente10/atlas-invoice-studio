@@ -1,5 +1,5 @@
-from pathlib import Path
 import re
+from pathlib import Path
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT, TA_RIGHT
@@ -8,6 +8,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import (
     KeepTogether,
+    Image,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -18,19 +19,35 @@ from reportlab.platypus import (
 from models.customer import Customer
 from models.estimate import Estimate
 from models.invoice import Invoice
+from database.settings_repository import SettingsRepository
+from models.company_settings import CompanySettings
+from services.application_paths import get_application_paths
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-OUTPUT_DIRECTORY = PROJECT_ROOT / "generated_documents"
+OUTPUT_DIRECTORY = None
 
 
-DEFAULT_COMPANY = {
-    "name": "Palm Coast Pros",
-    "address": "59 Brockton Ln<br/>Palm Coast, FL 32137-8728",
-    "email": "dany.nawrocki@gmail.com",
-    "phone": "(386) 585-0437",
-    "website": "www.palmcoastpros.com",
-}
+def company_pdf_data(settings: CompanySettings) -> dict[str, str]:
+    address_parts = [settings.street_address, settings.city_state_zip]
+    return {
+        "name": settings.business_name,
+        "contact_name": settings.contact_name,
+        "address": "<br/>".join(part for part in address_parts if part),
+        "email": settings.email,
+        "phone": settings.phone,
+        "website": settings.website,
+        "license_number": settings.license_number,
+        "logo_path": settings.logo_path,
+    }
+
+
+def load_company_pdf_data() -> dict[str, str]:
+    try:
+        return company_pdf_data(SettingsRepository().get())
+    except Exception:
+        # PDF preview remains usable before initial setup or against an older,
+        # not-yet-migrated database.
+        return company_pdf_data(CompanySettings())
 
 
 def format_currency(cents: int) -> str:
@@ -56,10 +73,24 @@ def _generate_document_pdf(
     secondary_date: str,
     company: dict[str, str] | None = None,
 ) -> Path:
-    company = company or DEFAULT_COMPANY
-    OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    company = load_company_pdf_data() if company is None else company
+    safe_company = {
+        key: str(company.get(key, ""))
+        for key in (
+            "name",
+            "contact_name",
+            "address",
+            "email",
+            "phone",
+            "website",
+            "license_number",
+            "logo_path",
+        )
+    }
+    output_directory = OUTPUT_DIRECTORY or get_application_paths().generated_documents_directory
+    output_directory.mkdir(parents=True, exist_ok=True)
 
-    output_path = OUTPUT_DIRECTORY / (
+    output_path = output_directory / (
         f"{document_label.title()}_{number}_"
         f"{safe_filename(customer.name)}.pdf"
     )
@@ -135,19 +166,39 @@ def _generate_document_pdf(
         topMargin=0.5 * inch,
         bottomMargin=0.55 * inch,
         title=f"{document_label.title()} #{number}",
-        author=company["name"],
+        author=safe_company["name"] or "Atlas Invoice Studio",
     )
 
     story = []
 
-    company_block = [
-        Paragraph(company["name"], company_name),
-        Spacer(1, 5),
-        Paragraph(company["address"], normal),
-        Paragraph(company["email"], normal),
-        Paragraph(company["phone"], normal),
-        Paragraph(company["website"], normal),
-    ]
+    company_block = []
+    logo_path = Path(safe_company["logo_path"]) if safe_company["logo_path"] else None
+    if logo_path is not None and logo_path.is_file():
+        try:
+            logo = Image(str(logo_path))
+            scale = min((1.65 * inch) / logo.drawWidth, (0.65 * inch) / logo.drawHeight)
+            logo.drawWidth *= scale
+            logo.drawHeight *= scale
+            company_block.extend([logo, Spacer(1, 5)])
+        except Exception:
+            pass
+    company_block.append(
+        Paragraph(safe_company["name"] or "Company Name", company_name)
+    )
+    company_block.append(Spacer(1, 5))
+    for value in (
+        safe_company["contact_name"],
+        safe_company["address"],
+        safe_company["email"],
+        safe_company["phone"],
+        safe_company["website"],
+    ):
+        if value:
+            company_block.append(Paragraph(value, normal))
+    if safe_company["license_number"]:
+        company_block.append(
+            Paragraph(f"License: {safe_company['license_number']}", normal)
+        )
 
     document_block = [
         Paragraph(document_label, document_title),

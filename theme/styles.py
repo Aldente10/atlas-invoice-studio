@@ -262,6 +262,21 @@ QMainWindow,
     font-weight: 800;
 }
 
+#settingsScroll {
+    background-color: transparent;
+}
+
+#settingsScroll > QWidget > QWidget {
+    background-color: transparent;
+}
+
+#logoPreview {
+    background-color: #f8faff;
+    color: #7a899c;
+    border: 1px dashed #b8c6d8;
+    border-radius: 8px;
+}
+
 #serviceSelectionDialog {
     background-color: #f4f7fb;
 }

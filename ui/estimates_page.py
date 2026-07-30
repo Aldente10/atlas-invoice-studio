@@ -29,6 +29,7 @@ from database.invoice_repository import (
     DuplicateEstimateConversionError,
     InvoiceRepository,
 )
+from database.settings_repository import SettingsRepository
 from models.estimate import Estimate, EstimateItem
 from pdf.estimate_pdf import generate_estimate_pdf
 from services.estimate_items import estimate_item_from_service
@@ -51,6 +52,7 @@ class EstimatesPage(QWidget):
         self.customer_repository = CustomerRepository()
         self.estimate_repository = EstimateRepository()
         self.invoice_repository = InvoiceRepository()
+        self.settings_repository = SettingsRepository()
 
         self.current_estimate_id: int | None = None
 
@@ -363,7 +365,8 @@ class EstimatesPage(QWidget):
         )
 
         today = date.today()
-        expiration = today + timedelta(days=14)
+        settings = self.settings_repository.get()
+        expiration = today + timedelta(days=settings.estimate_expiration_days)
 
         self.estimate_date_input.setDate(
             QDate(today.year, today.month, today.day)
@@ -374,7 +377,7 @@ class EstimatesPage(QWidget):
 
         self.customer_combo.setCurrentIndex(0)
         self.job_address_input.clear()
-        self.notes_input.setPlainText("Materials and labor included.")
+        self.notes_input.setPlainText(settings.default_estimate_notes)
         self.tax_rate_input.setValue(0.0)
         self.items_table.setRowCount(0)
 

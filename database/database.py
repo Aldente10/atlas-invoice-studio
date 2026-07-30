@@ -1,16 +1,26 @@
-from pathlib import Path
 import sqlite3
+from pathlib import Path
+
+from services.application_paths import (
+    ensure_application_directories,
+    get_application_paths,
+    migrate_legacy_database_if_needed,
+)
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATA_DIRECTORY = PROJECT_ROOT / "data"
-DATABASE_PATH = DATA_DIRECTORY / "atlas_invoice_studio.db"
+# Optional override retained for isolated tests and embedding scenarios.
+DATABASE_PATH = None
+
+
+def get_database_path() -> Path:
+    return DATABASE_PATH or get_application_paths().database_path
 
 
 def get_connection() -> sqlite3.Connection:
-    DATA_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    database_path = get_database_path()
+    database_path.parent.mkdir(parents=True, exist_ok=True)
 
-    connection = sqlite3.connect(DATABASE_PATH)
+    connection = sqlite3.connect(database_path)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
 
@@ -18,6 +28,11 @@ def get_connection() -> sqlite3.Connection:
 
 
 def initialize_database() -> None:
+    if DATABASE_PATH is None:
+        paths = get_application_paths()
+        ensure_application_directories(paths)
+        migrate_legacy_database_if_needed(paths)
+
     with get_connection() as connection:
         connection.executescript(
             """
@@ -127,6 +142,27 @@ def initialize_database() -> None:
 
             CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice
             ON invoice_items(invoice_id);
+
+            CREATE TABLE IF NOT EXISTS company_settings (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                business_name TEXT NOT NULL DEFAULT '',
+                contact_name TEXT NOT NULL DEFAULT '',
+                street_address TEXT NOT NULL DEFAULT '',
+                city_state_zip TEXT NOT NULL DEFAULT '',
+                phone TEXT NOT NULL DEFAULT '',
+                email TEXT NOT NULL DEFAULT '',
+                website TEXT NOT NULL DEFAULT '',
+                license_number TEXT NOT NULL DEFAULT '',
+                logo_path TEXT NOT NULL DEFAULT '',
+                default_estimate_notes TEXT NOT NULL DEFAULT
+                    'Materials and labor included.',
+                default_invoice_notes TEXT NOT NULL DEFAULT
+                    'Thank you for your business.',
+                estimate_expiration_days INTEGER NOT NULL DEFAULT 14,
+                next_estimate_number INTEGER NOT NULL DEFAULT 1039,
+                next_invoice_number INTEGER NOT NULL DEFAULT 1001,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
 
             CREATE TABLE IF NOT EXISTS services (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

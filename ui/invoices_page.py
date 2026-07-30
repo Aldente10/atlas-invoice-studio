@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 
 from database.customer_repository import CustomerRepository
 from database.invoice_repository import InvoiceRepository
+from database.settings_repository import SettingsRepository
 from models.invoice import INVOICE_STATUSES, Invoice, InvoiceItem
 from pdf.invoice_pdf import generate_invoice_pdf
 from services.estimate_items import estimate_item_from_service
@@ -36,6 +37,7 @@ class InvoicesPage(EstimatesPage):
         self.setObjectName("dashboard")
         self.customer_repository = CustomerRepository()
         self.invoice_repository = InvoiceRepository()
+        self.settings_repository = SettingsRepository()
         self.current_invoice_id: int | None = None
 
         self.build_ui()
@@ -226,13 +228,14 @@ class InvoicesPage(EstimatesPage):
         self.load_saved_invoices()
         self.number_input.setValue(self.invoice_repository.next_invoice_number())
         today = date.today()
+        settings = self.settings_repository.get()
         due = today + timedelta(days=30)
         self.invoice_date_input.setDate(QDate(today.year, today.month, today.day))
         self.due_date_input.setDate(QDate(due.year, due.month, due.day))
         self.customer_combo.setCurrentIndex(0)
         self.status_input.setCurrentText("Draft")
         self.job_address_input.clear()
-        self.notes_input.setPlainText("Thank you for your business.")
+        self.notes_input.setPlainText(settings.default_invoice_notes)
         self.tax_rate_input.setValue(0.0)
         self.items_table.setRowCount(0)
         self.add_line_item()

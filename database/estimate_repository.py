@@ -7,7 +7,14 @@ class EstimateRepository:
         with get_connection() as connection:
             row = connection.execute(
                 """
-                SELECT COALESCE(MAX(estimate_number), 1038) + 1 AS next_number
+                SELECT MAX(
+                    COALESCE(MAX(estimate_number), 1038) + 1,
+                    COALESCE(
+                        (SELECT next_estimate_number
+                         FROM company_settings WHERE id = 1),
+                        1039
+                    )
+                ) AS next_number
                 FROM estimates
                 """
             ).fetchone()

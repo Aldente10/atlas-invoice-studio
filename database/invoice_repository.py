@@ -14,7 +14,14 @@ class InvoiceRepository:
         with get_connection() as connection:
             row = connection.execute(
                 """
-                SELECT COALESCE(MAX(invoice_number), 1000) + 1 AS next_number
+                SELECT MAX(
+                    COALESCE(MAX(invoice_number), 1000) + 1,
+                    COALESCE(
+                        (SELECT next_invoice_number
+                         FROM company_settings WHERE id = 1),
+                        1001
+                    )
+                ) AS next_number
                 FROM invoices
                 """
             ).fetchone()
@@ -62,7 +69,14 @@ class InvoiceRepository:
 
             number_row = connection.execute(
                 """
-                SELECT COALESCE(MAX(invoice_number), 1000) + 1 AS next_number
+                SELECT MAX(
+                    COALESCE(MAX(invoice_number), 1000) + 1,
+                    COALESCE(
+                        (SELECT next_invoice_number
+                         FROM company_settings WHERE id = 1),
+                        1001
+                    )
+                ) AS next_number
                 FROM invoices
                 """
             ).fetchone()

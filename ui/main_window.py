@@ -15,6 +15,7 @@ from ui.customers_page import CustomersPage
 from ui.dashboard_page import DashboardPage
 from ui.estimates_page import EstimatesPage
 from ui.invoices_page import InvoicesPage
+from ui.settings_page import SettingsPage
 from ui.services_page import ServicesPage
 
 
@@ -94,12 +95,9 @@ class MainWindow(QMainWindow):
                 "Review sales, outstanding balances, and document activity.",
             )
         )
-        self.page_stack.addWidget(
-            PlaceholderPage(
-                "Settings",
-                "Configure company branding, numbering, and document defaults.",
-            )
-        )
+        self.settings_page = SettingsPage()
+        self.settings_page.settings_saved.connect(self.update_company_name)
+        self.page_stack.addWidget(self.settings_page)
 
     def build_sidebar(self) -> QFrame:
         sidebar = QFrame()
@@ -143,13 +141,16 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
-        company = QLabel("PALM COAST PROS")
-        company.setObjectName("companyName")
+        self.company_label = QLabel(
+            self.settings_page.settings_repository.get().business_name.upper()
+            or "YOUR COMPANY"
+        )
+        self.company_label.setObjectName("companyName")
 
         status = QLabel("Local desktop edition")
         status.setObjectName("companyStatus")
 
-        layout.addWidget(company)
+        layout.addWidget(self.company_label)
         layout.addWidget(status)
 
         return sidebar
@@ -157,6 +158,8 @@ class MainWindow(QMainWindow):
     def show_page(self, index: int) -> None:
         if index == 3:
             self.invoices_page.load_saved_invoices()
+        if index == 6:
+            self.settings_page.load_settings()
         self.page_stack.setCurrentIndex(index)
 
         for button_index, button in enumerate(self.nav_buttons):
@@ -171,3 +174,6 @@ class MainWindow(QMainWindow):
         self.invoices_page.load_saved_invoices()
         self.invoices_page.open_invoice(invoice_id)
         self.show_page(3)
+
+    def update_company_name(self, business_name: str) -> None:
+        self.company_label.setText(business_name.upper() or "YOUR COMPANY")
