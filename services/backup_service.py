@@ -7,6 +7,8 @@ import sqlite3
 from tempfile import TemporaryDirectory
 import zipfile
 
+from release_metadata import PRODUCT_NAME
+
 from models.company_settings import CompanySettings
 from services.application_paths import (
     ApplicationPaths,
@@ -70,7 +72,7 @@ class BackupService:
                 logo_member = f"managed_logo{logo_path.suffix.lower()}"
 
             manifest = {
-                "application": "Atlas Invoice Studio",
+                "application": PRODUCT_NAME,
                 "format_version": BACKUP_FORMAT_VERSION,
                 "created_at": datetime.now().astimezone().isoformat(),
                 "reason": reason,
@@ -117,8 +119,8 @@ class BackupService:
                 if MANIFEST_MEMBER not in names:
                     raise BackupValidationError("The backup manifest is missing.")
                 manifest = json.loads(archive.read(MANIFEST_MEMBER))
-                if manifest.get("application") != "Atlas Invoice Studio":
-                    raise BackupValidationError("This is not an Atlas Invoice Studio backup.")
+                if manifest.get("application") != PRODUCT_NAME:
+                    raise BackupValidationError(f"This is not a {PRODUCT_NAME} backup.")
                 if manifest.get("format_version") != BACKUP_FORMAT_VERSION:
                     raise BackupValidationError("This backup version is not supported.")
                 if DATABASE_MEMBER not in names or SETTINGS_MEMBER not in names:

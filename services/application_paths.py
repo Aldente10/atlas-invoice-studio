@@ -3,9 +3,10 @@ import os
 from pathlib import Path
 import shutil
 import sys
+import tempfile
 
+from release_metadata import APPLICATION_DIRECTORY_NAME
 
-APPLICATION_DIRECTORY_NAME = "Atlas Invoice Studio"
 DATA_DIRECTORY_ENVIRONMENT_VARIABLE = "ATLAS_INVOICE_STUDIO_DATA_DIR"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -82,6 +83,23 @@ def ensure_application_directories(paths: ApplicationPaths | None = None) -> Non
     paths.generated_documents_directory.mkdir(parents=True, exist_ok=True)
     paths.backups_directory.mkdir(parents=True, exist_ok=True)
     paths.managed_assets_directory.mkdir(parents=True, exist_ok=True)
+
+
+def validate_application_data_directory(
+    paths: ApplicationPaths | None = None,
+) -> None:
+    """Confirm the live data directory can safely create and remove a file."""
+    paths = paths or get_application_paths()
+    ensure_application_directories(paths)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        prefix=".atlas_write_test_",
+        dir=paths.application_data_directory,
+        delete=True,
+    ) as probe:
+        probe.write("Atlas startup validation")
+        probe.flush()
 
 
 def migrate_legacy_database_if_needed(

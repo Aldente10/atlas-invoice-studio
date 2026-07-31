@@ -1,6 +1,6 @@
 # Atlas Invoice Studio
 
-**Version:** 0.2.0-beta
+**Version:** 0.9.0-beta
 
 ---
 
@@ -68,13 +68,25 @@ painting. The beta prioritizes fast document creation, straightforward local
 operation, professional customer-facing output, and recoverable data over
 multi-user, cloud, or accounting-system features.
 
-## Current Milestone: Company Settings and Data Protection
+## Completed Milestone: Company Settings and Data Protection
 
 - Persistent company identity and document defaults
 - Packaged-safe per-user application storage
 - Managed company logo
 - Local timestamped backup archives
 - Validated restore with an automatic pre-restore safety backup
+
+Status: COMPLETE
+
+## Current Milestone: Beta Hardening
+
+- Live dashboard summaries and recent documents
+- Complete beta navigation and action wiring
+- Centralized release identity
+- Startup storage validation and safe failure handling
+- Full automated and offscreen application checks
+
+Status: IN PROGRESS
 
 ## Application Data and Migration
 
@@ -175,7 +187,7 @@ Features
 - Safe packaged application paths
 - Backup and restore
 
-Status: IN PROGRESS
+Status: COMPLETE
 
 ---
 
@@ -192,6 +204,8 @@ Documentation
 Testing
 
 Deployment
+
+Status: BETA HARDENING IN PROGRESS
 
 ---
 

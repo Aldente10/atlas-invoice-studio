@@ -24,6 +24,7 @@ from database.settings_repository import SettingsRepository
 from database.estimate_repository import EstimateRepository
 from database.invoice_repository import InvoiceRepository
 from models.company_settings import CompanySettings
+from release_metadata import PRODUCT_NAME
 from services.application_paths import ensure_application_directories, get_application_paths
 from services.backup_service import BackupService, BackupValidationError
 
@@ -322,7 +323,7 @@ class SettingsPage(QWidget):
     def restore_data(self) -> None:
         filename, _ = QFileDialog.getOpenFileName(
             self,
-            "Select Atlas Backup",
+            f"Select {PRODUCT_NAME} Backup",
             str(self.paths.backups_directory),
             "Atlas Backup (*.zip)",
         )
@@ -354,7 +355,7 @@ class SettingsPage(QWidget):
         QMessageBox.information(
             self,
             "Restore Complete",
-            "The backup was restored successfully. Restart Atlas Invoice Studio "
+            f"The backup was restored successfully. Restart {PRODUCT_NAME} "
             "before continuing.\n\nA safety backup of the previous data is here:\n"
             f"{safety_backup}",
         )

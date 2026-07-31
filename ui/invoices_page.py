@@ -321,6 +321,7 @@ class InvoicesPage(EstimatesPage):
             return
         self.invoice_repository.delete(invoice_id)
         self.start_new_invoice()
+        self.data_changed.emit()
 
     def collect_items(self) -> list[InvoiceItem]:
         items = []
@@ -427,3 +428,4 @@ class InvoicesPage(EstimatesPage):
             f"{self.format_currency(invoice.total_cents)}.",
         )
         self.start_new_invoice()
+        self.data_changed.emit()

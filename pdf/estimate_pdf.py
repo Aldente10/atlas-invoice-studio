@@ -5,6 +5,7 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from release_metadata import PRODUCT_NAME
 from reportlab.lib.units import inch
 from reportlab.platypus import (
     KeepTogether,
@@ -166,7 +167,7 @@ def _generate_document_pdf(
         topMargin=0.5 * inch,
         bottomMargin=0.55 * inch,
         title=f"{document_label.title()} #{number}",
-        author=safe_company["name"] or "Atlas Invoice Studio",
+        author=safe_company["name"] or PRODUCT_NAME,
     )
 
     story = []
@@ -452,7 +453,7 @@ def _generate_document_pdf(
         canvas.drawString(
             doc.leftMargin,
             0.22 * inch,
-            "Generated with Atlas Invoice Studio",
+            f"Generated with {PRODUCT_NAME}",
         )
         canvas.drawRightString(
             letter[0] - doc.rightMargin,

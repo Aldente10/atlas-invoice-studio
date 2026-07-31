@@ -47,6 +47,11 @@ QMainWindow,
     color: #ffffff;
 }
 
+#navButton:disabled {
+    color: #7489a3;
+    background-color: transparent;
+}
+
 #navButtonActive {
     color: #ffffff;
     background-color: #1d63d8;

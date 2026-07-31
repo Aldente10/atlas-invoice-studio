@@ -39,6 +39,7 @@ from ui.service_selection_dialog import ServiceSelectionDialog
 
 class EstimatesPage(QWidget):
     invoice_created = Signal(int)
+    data_changed = Signal()
 
     DESCRIPTION_COLUMN = 0
     QUANTITY_COLUMN = 1
@@ -403,6 +404,7 @@ class EstimatesPage(QWidget):
             self.customer_combo.setCurrentIndex(index)
 
         self.job_address_input.setText(customer.job_address)
+        self.data_changed.emit()
 
     def customer_changed(self) -> None:
         customer_id = self.customer_combo.currentData()
@@ -455,6 +457,11 @@ class EstimatesPage(QWidget):
             )
             return
 
+        self.open_estimate(estimate_id)
+
+    def open_estimate(self, estimate_id: int) -> None:
+        self.load_customers()
+        self.load_saved_estimates()
         estimate = self.estimate_repository.get_by_id(estimate_id)
 
         if estimate is None:
@@ -524,6 +531,7 @@ class EstimatesPage(QWidget):
 
         self.estimate_repository.delete(estimate_id)
         self.start_new_estimate()
+        self.data_changed.emit()
 
     def convert_to_invoice(self) -> None:
         estimate_id = self.current_estimate_id or self.saved_estimates_combo.currentData()
@@ -572,6 +580,7 @@ class EstimatesPage(QWidget):
             f"Invoice #{invoice.invoice_number} was created from "
             f"estimate #{estimate.estimate_number}.",
         )
+        self.data_changed.emit()
         self.invoice_created.emit(invoice.id)
 
     def add_line_item(
@@ -906,6 +915,7 @@ class EstimatesPage(QWidget):
         )
 
         self.start_new_estimate()
+        self.data_changed.emit()
 
     @staticmethod
     def format_currency(cents: int) -> str:

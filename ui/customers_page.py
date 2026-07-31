@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFormLayout,
     QFrame,
@@ -19,6 +19,8 @@ from models.customer import Customer
 
 
 class CustomersPage(QWidget):
+    data_changed = Signal()
+
     def __init__(self) -> None:
         super().__init__()
         self.setObjectName("dashboard")
@@ -253,6 +255,7 @@ class CustomersPage(QWidget):
             message = "Customer updated successfully."
 
         self.load_customers()
+        self.data_changed.emit()
         QMessageBox.information(self, "Saved", message)
 
     def delete_customer(self) -> None:
@@ -276,9 +279,19 @@ class CustomersPage(QWidget):
         if answer != QMessageBox.StandardButton.Yes:
             return
 
-        self.repository.delete(self.current_customer_id)
+        try:
+            self.repository.delete(self.current_customer_id)
+        except Exception as error:
+            QMessageBox.critical(
+                self,
+                "Unable to Delete Customer",
+                "This customer may be linked to an estimate or invoice.\n\n"
+                f"Details: {error}",
+            )
+            return
         self.clear_form()
         self.load_customers()
+        self.data_changed.emit()
 
     def clear_form(self) -> None:
         self.current_customer_id = None
