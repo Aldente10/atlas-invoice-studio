@@ -1,0 +1,109 @@
+﻿name: Build macOS Beta
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-macos-arm64:
+    name: Build Apple Silicon DMG
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Show build environment
+        run: |
+          python --version
+          python -c "import platform; print('Architecture:', platform.machine())"
+          sw_vers
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest pyinstaller
+
+      - name: Run automated tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          pytest -q
+
+      - name: Compile Python source
+        run: |
+          python -m compileall -q \
+            database \
+            models \
+            pdf \
+            services \
+            theme \
+            ui \
+            main.py \
+            release_metadata.py
+
+      - name: Build macOS application
+        run: |
+          pyinstaller \
+            --noconfirm \
+            --clean \
+            --windowed \
+            --onedir \
+            --target-architecture arm64 \
+            --osx-bundle-identifier "com.atlas.invoice-studio" \
+            --name "Atlas Invoice Studio" \
+            main.py
+
+      - name: Ad-hoc sign application
+        run: |
+          codesign \
+            --force \
+            --deep \
+            --sign - \
+            "dist/Atlas Invoice Studio.app"
+
+          codesign \
+            --verify \
+            --deep \
+            --strict \
+            --verbose=2 \
+            "dist/Atlas Invoice Studio.app"
+
+      - name: Verify Apple Silicon executable
+        run: |
+          file "dist/Atlas Invoice Studio.app/Contents/MacOS/Atlas Invoice Studio"
+
+      - name: Create DMG
+        run: |
+          mkdir -p dmg-root
+
+          cp -R \
+            "dist/Atlas Invoice Studio.app" \
+            "dmg-root/Atlas Invoice Studio.app"
+
+          ln -s /Applications "dmg-root/Applications"
+
+          hdiutil create \
+            -volname "Atlas Invoice Studio" \
+            -srcfolder "dmg-root" \
+            -ov \
+            -format UDZO \
+            "Atlas_Invoice_Studio_0.9.0-beta_arm64.dmg"
+
+      - name: Upload macOS beta
+        uses: actions/upload-artifact@v4
+        with:
+          name: Atlas-Invoice-Studio-macOS-arm64-beta
+          path: Atlas_Invoice_Studio_0.9.0-beta_arm64.dmg
+          if-no-files-found: error
+          retention-days: 14
