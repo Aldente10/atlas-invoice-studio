@@ -1,6 +1,16 @@
 import sqlite3
 from pathlib import Path
 
+class ClosingConnection(sqlite3.Connection):
+    """Commit or roll back, then deterministically release the database file."""
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
+
+
 from services.application_paths import (
     ensure_application_directories,
     get_application_paths,
@@ -20,7 +30,10 @@ def get_connection() -> sqlite3.Connection:
     database_path = get_database_path()
     database_path.parent.mkdir(parents=True, exist_ok=True)
 
-    connection = sqlite3.connect(database_path)
+    connection = sqlite3.connect(
+        database_path,
+        factory=ClosingConnection,
+    )
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
 

@@ -1,3 +1,4 @@
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime
 import json
@@ -178,11 +179,13 @@ class BackupService:
                         shutil.copyfileobj(source, target)
                     shutil.copy2(staged_logo, restored_logo_path)
 
-            with sqlite3.connect(staged_database) as connection:
+            with closing(sqlite3.connect(staged_database)) as connection:
                 connection.execute(
                     "UPDATE company_settings SET logo_path = ? WHERE id = 1",
                     (str(restored_logo_path) if restored_logo_path else "",),
                 )
+                connection.commit()
+
             self._validate_database(staged_database)
 
             replacement = self.paths.database_path.with_suffix(".db.restore-staging")
@@ -199,13 +202,13 @@ class BackupService:
         return safety_backup
 
     def _copy_database(self, destination: Path) -> None:
-        with sqlite3.connect(self.paths.database_path) as source:
-            with sqlite3.connect(destination) as target:
+        with closing(sqlite3.connect(self.paths.database_path)) as source:
+            with closing(sqlite3.connect(destination)) as target:
                 source.backup(target)
 
     @staticmethod
     def _read_settings(database_path: Path) -> CompanySettings:
-        with sqlite3.connect(database_path) as connection:
+        with closing(sqlite3.connect(database_path)) as connection:
             connection.row_factory = sqlite3.Row
             row = connection.execute(
                 """
@@ -217,6 +220,7 @@ class BackupService:
                 FROM company_settings WHERE id = 1
                 """
             ).fetchone()
+
         return CompanySettings(**dict(row)) if row else CompanySettings()
 
     @staticmethod
@@ -231,12 +235,21 @@ class BackupService:
             "company_settings",
         }
         try:
-            with sqlite3.connect(f"file:{database_path}?mode=ro", uri=True) as connection:
-                quick_check = connection.execute("PRAGMA quick_check").fetchone()[0]
+            with closing(
+                sqlite3.connect(
+                    f"file:{database_path}?mode=ro",
+                    uri=True,
+                )
+            ) as connection:
+                quick_check = connection.execute(
+                    "PRAGMA quick_check"
+                ).fetchone()[0]
+
                 if quick_check != "ok":
                     raise BackupValidationError(
                         f"The backup database failed integrity checking: {quick_check}"
                     )
+
                 rows = connection.execute(
                     "SELECT name FROM sqlite_master WHERE type = 'table'"
                 ).fetchall()
