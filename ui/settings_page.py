@@ -76,14 +76,14 @@ class SettingsPage(QWidget):
         self.email_input = self._line_input()
         self.website_input = self._line_input()
         self.license_number_input = self._line_input()
-        company_form.addRow("Business Name *", self.business_name_input)
-        company_form.addRow("Owner / Contact", self.contact_name_input)
-        company_form.addRow("Street Address", self.street_address_input)
-        company_form.addRow("City / State / ZIP", self.city_state_zip_input)
-        company_form.addRow("Phone", self.phone_input)
-        company_form.addRow("Email", self.email_input)
-        company_form.addRow("Website", self.website_input)
-        company_form.addRow("License Number", self.license_number_input)
+        self._add_form_row(company_form, "Business Name *", self.business_name_input)
+        self._add_form_row(company_form, "Owner / Contact", self.contact_name_input)
+        self._add_form_row(company_form, "Street Address", self.street_address_input)
+        self._add_form_row(company_form, "City / State / ZIP", self.city_state_zip_input)
+        self._add_form_row(company_form, "Phone", self.phone_input)
+        self._add_form_row(company_form, "Email", self.email_input)
+        self._add_form_row(company_form, "Website", self.website_input)
+        self._add_form_row(company_form, "License Number", self.license_number_input)
         company_panel.layout().addLayout(company_form)
 
         logo_row = QHBoxLayout()
@@ -124,11 +124,11 @@ class SettingsPage(QWidget):
         self.next_invoice_input.setToolTip(
             "Existing invoice numbers are never reused; this value acts as a minimum."
         )
-        defaults_form.addRow("Default Estimate Notes / Terms", self.estimate_notes_input)
-        defaults_form.addRow("Default Invoice Notes / Terms", self.invoice_notes_input)
-        defaults_form.addRow("Estimate Expiration", self.expiration_days_input)
-        defaults_form.addRow("Next Estimate Number", self.next_estimate_input)
-        defaults_form.addRow("Next Invoice Number", self.next_invoice_input)
+        self._add_form_row(defaults_form, "Default Estimate Notes / Terms", self.estimate_notes_input)
+        self._add_form_row(defaults_form, "Default Invoice Notes / Terms", self.invoice_notes_input)
+        self._add_form_row(defaults_form, "Estimate Expiration", self.expiration_days_input)
+        self._add_form_row(defaults_form, "Next Estimate Number", self.next_estimate_input)
+        self._add_form_row(defaults_form, "Next Invoice Number", self.next_invoice_input)
         defaults_panel.layout().addLayout(defaults_form)
 
         save_row = QHBoxLayout()
@@ -172,6 +172,16 @@ class SettingsPage(QWidget):
         content_layout.addStretch()
         scroll.setWidget(content)
         root.addWidget(scroll, 1)
+
+    @staticmethod
+    def _add_form_row(form, label_text: str, field) -> None:
+        label = QLabel(label_text)
+        label.setObjectName("settingsFormLabel")
+        label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft
+            | Qt.AlignmentFlag.AlignVCenter
+        )
+        form.addRow(label, field)
 
     @staticmethod
     def _line_input() -> QLineEdit:

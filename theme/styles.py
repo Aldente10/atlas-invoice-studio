@@ -395,4 +395,13 @@ QComboBox:disabled {
     color: #7a899c;
 }
 
+
+QLabel#settingsFormLabel {
+    background-color: transparent;
+    color: #263b57;
+    font-size: 13px;
+    font-weight: 600;
+    padding-right: 10px;
+}
+
 """
